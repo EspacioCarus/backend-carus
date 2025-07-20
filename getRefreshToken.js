@@ -1,32 +1,31 @@
-const { google } = require('googleapis');
 require('dotenv').config();
+const { google } = require('googleapis');
 
 const oAuth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    'https://developers.google.com/oauthplayground'
 );
+
+const SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/gmail.send'
+];
 
 const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/calendar'],
+    scope: SCOPES,
+    prompt: 'consent'
 });
 
-console.log('Abre este enlace en tu navegador y acepta los permisos:\n');
-console.log(authUrl);
+console.log('Autoriza esta URL en tu navegador:', authUrl);
 
-const readline = require('readline').createInterface({
-    input: process.stdin,
-    output: process.stdout,
-});
+// Luego sigue el proceso para obtener el código, y ejecuta el siguiente paso manualmente:
+getToken('4/0AVMBsJhnPAeK0Kf9uqrJqEiYDZ5rVPs_na1YRh5vKDu-BrLXn3C5fzUjhMi6iPj52J1EGQ');
 
-readline.question('\nPega aquí el código que te da Google: ', async (code) => {
-    try {
-        const { tokens } = await oAuth2Client.getToken(code);
-        console.log('\nTU REFRESH TOKEN ES:\n');
-        console.log(tokens.refresh_token);
-    } catch (error) {
-        console.error('Error al obtener el refresh token', error);
-    }
-    readline.close();
-});
+
+async function getToken(code) {
+    const { tokens } = await oAuth2Client.getToken(code);
+    console.log('Tu nuevo refresh token es:', tokens.refresh_token);
+}
+

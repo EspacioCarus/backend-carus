@@ -36,12 +36,15 @@ async function createEvent(event) {
     });
 }
 
-async function sendEmail(to, subject, text) {
+async function sendEmail(to, subject, htmlContent) {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
+            type: 'OAuth2',
             user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            refreshToken: process.env.GOOGLE_REFRESH_TOKEN
         }
     });
 
@@ -49,8 +52,10 @@ async function sendEmail(to, subject, text) {
         from: `"Espacio Carus" <${process.env.EMAIL_USER}>`,
         to,
         subject,
-        text
+        html: htmlContent
     });
+
+    console.log('Correo enviado en HTML a', to);
 }
 
 app.post('/reservar', async (req, res) => {
@@ -76,8 +81,22 @@ app.post('/reservar', async (req, res) => {
 
         await createEvent(event);
 
-        await sendEmail(email, 'Confirmación de Reserva - Espacio Carus',
-            `Hola ${nombre}, tu reserva para ${tratamiento} el ${fecha} a las ${hora} ha sido confirmada.`);
+        await sendEmail(email, 'Confirmación de tu reserva en Espacio Carus', `
+            <div style="font-family: Arial, sans-serif; color: #333;">
+                <h2 style="color: #d1b17b;">¡Gracias por tu reserva, ${nombre}!</h2>
+                <p>Te confirmamos que tu cita para el tratamiento de <strong>${tratamiento}</strong> ha sido registrada con éxito.</p>
+                <p>📅 <strong>Fecha:</strong> ${fecha}</p>
+                <p>🕒 <strong>Hora:</strong> ${hora}</p>
+                <br>
+                <p>Si necesitas modificar tu cita, contáctanos:</p>
+                <ul>
+                    <li>📞 Teléfono: 635 82 65 20</li>
+                    <li>📧 Email: espaciocarus@gmail.com</li>
+                </ul>
+                <br>
+                <p>¡Te esperamos en <strong>Espacio Carus</strong>! 💛</p>
+            </div>
+        `);
 
         res.send('Reserva confirmada');
     } catch (err) {
@@ -88,4 +107,6 @@ app.post('/reservar', async (req, res) => {
 
 // puerto 4000
 app.listen(4000, () => console.log('Servidor funcionando en puerto 4000'));
+
+
 
