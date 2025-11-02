@@ -110,6 +110,57 @@ app.post('/reservar', async (req, res) => {
         res.status(500).send('Error al reservar');
     }
 });
+// 👉 PÉGALO DEBAJO DE app.post('/reservar', ...) y antes del app.listen
+app.post('/api/confirmacion', async (req, res) => {
+  try {
+    const { cs_id, cita } = req.body || {};
+    const { nombre, email, tratamiento, telefono, fecha, hora } = cita || {};
+    if (!nombre || !tratamiento || !fecha || !hora) {
+      return res.status(400).send('Faltan datos');
+    }
+
+    const startDateTime = new Date(`${fecha}T${hora}:00`);
+    const endDateTime   = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+
+    // 1) Comprobar disponibilidad
+    const disponible = await checkAvailability(startDateTime.toISOString(), endDateTime.toISOString());
+    if (disponible.data.items.length > 0) {
+      // Si ya existe, devolvemos OK idempotente
+      return res.status(200).send('Ya había una reserva para ese hueco');
+    }
+
+    // 2) Crear evento
+    const event = {
+      summary: `${nombre} - ${tratamiento}`,
+      description: `Teléfono: ${telefono || '—'}\nEmail: ${email || '—'}\nStripe: ${cs_id || '—'}`,
+      start: { dateTime: startDateTime.toISOString() },
+      end:   { dateTime: endDateTime.toISOString() }
+    };
+    await createEvent(event);
+
+    // 3) Email de confirmación al cliente (si tenemos email)
+    if (email) {
+      await sendEmail(
+        email,
+        'Reserva confirmada · Espacio Carus',
+        `
+        <div style="font-family:Arial,sans-serif">
+          <h2>¡Gracias por tu reserva!</h2>
+          <p><strong>Tratamiento:</strong> ${tratamiento}</p>
+          <p><strong>Fecha:</strong> ${fecha} · <strong>Hora:</strong> ${hora}</p>
+          <p><strong>Nombre:</strong> ${nombre}</p>
+          <p>Si necesitas modificar tu cita, contáctanos:<br>
+          📞 635 82 65 20 · 📧 espaciocarus@gmail.com</p>
+        </div>`
+      );
+    }
+
+    return res.send('Confirmación procesada');
+  } catch (e) {
+    console.error('Error en /api/confirmacion:', e);
+    return res.status(500).send('Error al confirmar');
+  }
+});
 
 // puerto 4000
 app.listen(4000, () => console.log('Servidor funcionando en puerto 4000'));
